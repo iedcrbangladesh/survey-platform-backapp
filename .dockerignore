@@ -1,0 +1,23 @@
+.git
+Dockerfile
+.DS_Store
+.gitignore
+.dockerignore
+
+.venv
+venv/
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.mypy_cache/
+
+
+# General
+*.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
