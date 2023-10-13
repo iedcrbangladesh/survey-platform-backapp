@@ -10,6 +10,11 @@ import jwt
 from util import *
 import sys
 
+import pytz 
+UTC = pytz.utc 
+IST = pytz.timezone('Asia/Dhaka')
+datetime_ist = datetime.now(IST)
+
 key = "secret"
 
 @app.route('/api/save-question', methods=['POST'])
@@ -21,8 +26,10 @@ async def save_question():
     userid = data['userid']
     contactnumber = data['contactnumber']
     done = data['done']
+    dispose_status = data['dispose_status'] if 'dispose_status' in data else None
     data =data['data'] if 'data' in data else None
     #contactId = data['contactId']
+    
 
     myquery = { "_id" :ObjectId(userid)}
     user = my_col('users').find_one(myquery)
@@ -76,8 +83,8 @@ async def save_question():
             #data = contact_question['data']
             if(user_contact != None):
                 newvalues = { "$set": { 
-                "status":done,
-                #"dispose_status": None,
+                "status":1 if dispose_status!=None else done,
+                "dispose_status": dispose_status,
                 "updated_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S') 
                 } }
                 user_contact_query = {"_id":user_contact['_id']}
@@ -111,19 +118,22 @@ async def save_question():
 @app.route('/api/get-question/<string:contactId>', methods=['GET'])
 async def get_question(contactId:str):
 
-    #myquery = { "contact_number":contactnumber,'user_id':ObjectId(userid)}
-    myquery = {"_id":ObjectId(contactId)}
-    contact_question = my_col('contact_question').find_one(myquery)
-
-    data = {
-        "contact_question_id":None,
-        "data":None
-    }
-    if(contact_question!=None):
-        data["contact_question_id"]= str(contact_question["_id"])
-        data["data"]= contact_question["data"]
-
-    return(data)
+	data = {
+	    "contact_question_id":None,
+	    "data":None
+	}
+	contactIdin = {"null","undefined",""}
+	if(contactId not in contactIdin):
+		myquery = {"_id":ObjectId(contactId)}
+		contact_question = my_col('contact_question').find_one(myquery)
+		if(contact_question!=None):
+			#print(contact_question['schedule_count'])
+			data["contact_question_id"]= str(contact_question["_id"])
+			data["data"]= contact_question["data"]
+			data['last_section'] = contact_question['last_section'] if 'last_section' in contact_question else None
+			data['schedule_count'] = contact_question['schedule_count'] if 'schedule_count' in contact_question else None
+		
+	return(data)
 
 
 
@@ -196,7 +206,7 @@ async def contact_running_status():
             { 
                 
                 'data':data,
-                'done':1,
+                'done':0,
                 "updated_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 } 
             }
@@ -224,7 +234,7 @@ async def list_contact_schedule_time():
     cursor_cat = my_col('contact_schedule').find({
         'picked':0,
         'schedule_time':{
-            "$regex": datetime.now().strftime('%Y-%m-%d'),
+            "$regex": datetime_ist.strftime('%Y-%m-%d'),
         }
     }).skip(per_page*(page-1)).limit(per_page)
     #total_pages = int(total / per_page) * per_page
@@ -249,6 +259,7 @@ async def contact_schedule_time():
         mobile_no = data['mobile_no']
         contact_question_id = data['questionid']
         schedule_time = data['schedule_time']
+        last_section = data['last_section']
 
         data = data['data']
 
@@ -277,6 +288,7 @@ async def contact_schedule_time():
             'question_id':ObjectId(contact_question_id)
         }
         contact_schedule = my_col('contact_schedule').find_one(schedule_query)
+        
 
 
         user_contact_status = 0
@@ -301,6 +313,11 @@ async def contact_schedule_time():
             contact_schedule_status = 1
             contact_schedule_id = str(contact_schedule.inserted_id)
 
+        schedule_query_count = {
+        	'contact_number':mobile_no
+        }
+        contact_schedule_count = my_col('contact_schedule').count_documents(schedule_query_count)
+
         if(user_contact!=None and contact_question!=None):
             
             newvalues = { "$set": { 
@@ -318,6 +335,8 @@ async def contact_schedule_time():
                 'data':data,
                 'done':0,
                 'schedule_time':schedule_time,
+                'schedule_count':contact_schedule_count,
+                'last_section':last_section,
                 "updated_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 } 
             }
@@ -377,7 +396,7 @@ async def pick_schedule():
           'status':0
         }
         user_contact = my_col('user_contact').find_one(contactquery)
-        print(userid)
+        #print(userid)
         #print(ObjectId(user_contact['user_id']) == ObjectId(userid))
         #sys.exit()
         if(user_contact == None):
@@ -411,6 +430,14 @@ async def pick_schedule():
         #print(picked_by)    
         #sys.exit()
 
+        #schedule count
+        schedule_query_count = {
+        	'contact_number':contactnumber
+        }
+        contact_schedule_count = my_col('contact_schedule').count_documents(schedule_query_count)
+		#end schedulue count
+
+
         #inserted contact question
 
         myquery = { 
@@ -427,8 +454,10 @@ async def pick_schedule():
                 'user_id':ObjectId(userid),
                 'operator':picked_by,
                 'data':contact_question['data'],
+                'last_section':contact_question['last_section'],
                 'done':0,
                 "schedule_time":None,
+                'schedule_count':contact_schedule_count,
                 "created_at":datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 "updated_at":datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             })

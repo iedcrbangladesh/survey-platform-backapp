@@ -117,9 +117,19 @@ def login_user():
         global key
 
         user = my_col('users').find_one(myquery)
-        print(user)
+        
+        #check user is already logged in
+        if(user!=None and user['token'] != None):
+            print(user)
+            return({
+                "user":None
+            })
+
+        #check user already logged in
 
         if(user!=None and "suspended_at" in user and user["suspended_at"] != None):
+            
+
             return({
                 "user":None
             })
@@ -174,7 +184,16 @@ def login_user_staff():
         global key
 
         user = my_col('users').find_one(myquery)
-        print(user)
+        #print(user)
+        #one login at a time
+        '''
+        if(user!=None and user['token'] != None):
+            print(user)
+            return({
+                "user":None
+            })
+        '''
+        #end one login at a time
 
         if(user!=None and "suspended_at" in user and user["suspended_at"] != None):
             return({

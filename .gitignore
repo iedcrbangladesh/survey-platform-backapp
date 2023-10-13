@@ -1,6 +1,8 @@
 uploads/*
 !uploads/.gitkeep 
 
+cert3.pem
+privkey3.pem
 
 .env
 
